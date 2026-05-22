@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="theme-color" content="#2c7da0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>LOG BBM | Vercel Storage</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, 'Segoe UI', 'Poppins', 'Roboto', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(145deg, #eef2f7 0%, #dce5ed 100%);
+            margin: 0;
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .app-container {
+            max-width: 1100px;
+            width: 100%;
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(2px);
+            border-radius: 48px;
+            padding: 20px 24px;
+            box-shadow: 0 20px 35px rgba(0,0,0,0.1);
+        }
+
+        .sync-status {
+            background: #2c7da0;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 40px;
+            text-align: center;
+            margin-bottom: 16px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .sync-status.synced {
+            background: #2e7d64;
+        }
+
+        .sync-status.error {
+            background: #d32f2f;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.7rem;
+            background: linear-gradient(135deg, #1f5e7a, #2c7da0);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .summary-ribbon {
+            background: white;
+            border-radius: 28px;
+            padding: 16px 20px;
+            margin: 20px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .summary-item {
+            flex: 1;
+            background: #f8fbfe;
+            padding: 6px 12px;
+            border-radius: 40px;
+            text-align: center;
+        }
+
+        .summary-value {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #154f6b;
+        }
+
+        .form-card {
+            background: white;
+            border-radius: 32px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .input-field {
+            flex: 1;
+        }
+
+        .input-field input {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 28px;
+            border: 1px solid #cbdbe0;
+        }
+
+        button {
+            background: #2c7da0;
+            color: white;
+            font-weight: bold;
+            padding: 10px 22px;
+            border-radius: 40px;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .catat-btn {
+            background: #ff8c42;
+        }
+
+        .reset-btn {
+            background: #6c757d;
+        }
+
+        .table-section {
+            background: white;
+            border-radius: 32px;
+            padding: 16px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 10px 8px;
+            text-align: center;
+            border-bottom: 1px solid #e2edf4;
+        }
+
+        .positive-change { color: #2e7d64; font-weight: bold; }
+        .negative-change { color: #d32f2f; font-weight: bold; }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #2c7da0;
+        }
+
+        @media (max-width: 750px) {
+            body { padding: 12px; }
+            .form-group { flex-direction: column; }
+            button { width: 100%; }
+            .summary-value { font-size: 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <div class="sync-status" id="syncStatus">🔄 Memuat data...</div>
+
+    <div class="header">
+        <h1>⛽ LOG BBM</h1>
+    </div>
+
+    <div class="summary-ribbon" id="summaryRibbon">
+        <div class="summary-item">
+            <div class="summary-label">TOTAL REFUEL</div>
+            <div class="summary-value"><span id="totalLiterDibeli">0</span> L / <span id="totalLiterToKm">0</span> KM</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-label">TOTAL PENGGUNAAN</div>
+            <div class="summary-value"><span id="totalKmTerpakai">0</span> km</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-label">⚡ JARAK TEMPUH</div>
+            <div class="summary-value"><span id="totalSisaKm">0</span> km</div>
+        </div>
+    </div>
+
+    <div class="form-card">
+        <div class="form-title">📊 ODOMETER</div>
+        <div class="form-group">
+            <div class="input-field">
+                <label>🔢 Jarak Tempuh (km)</label>
+                <input type="number" id="jarakPakaiInput" step="0.1" placeholder="Contoh: 45.5">
+            </div>
+            <button id="tambahPakaiBtn" class="catat-btn">UPDATE</button>
+        </div>
+    </div>
+
+    <div class="form-card">
+        <div class="form-title">⛽ REFUEL</div>
+        <div class="form-group">
+            <div class="input-field">
+                <label>📅 Tanggal</label>
+                <input type="date" id="tanggalIsiInput">
+            </div>
+            <div class="input-field">
+                <label>➕ Liter</label>
+                <input type="number" id="literIsiInput" step="0.01" placeholder="20.5">
+            </div>
+            <button id="tambahIsiBtn">REFUEL</button>
+        </div>
+    </div>
+
+    <div class="table-section">
+        <h3>📋 Riwayat BBM</h3>
+        <table id="logTable">
+            <thead>
+                <tr>
+                    <th>Tanggal</th>
+                    <th>Detail</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr>
+                    <td colspan="2" class="loading">Memuat data...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div style="margin-top: 20px; text-align: center;">
+        <button id="resetBtn" class="reset-btn">RESET DATA</button>
+    </div>
+
+    <footer style="margin-top: 16px; text-align: center; font-size: 0.65rem;">
+        Developed by Hari Agustian | Storage: Vercel
+    </footer>
+</div>
+
+<script>
+    // Konfigurasi API Vercel
+    const API_URL = '/api/transactions';
+    let transactions = [];
+    
+    function showSyncStatus(type, message) {
+        const statusDiv = document.getElementById('syncStatus');
+        statusDiv.textContent = message;
+        statusDiv.className = 'sync-status';
+        if (type === 'success') statusDiv.classList.add('synced');
+        if (type === 'error') statusDiv.classList.add('error');
+        setTimeout(() => {
+            if (statusDiv.classList.contains('synced') || statusDiv.classList.contains('error')) {
+                statusDiv.textContent = '✓ Siap';
+                statusDiv.className = 'sync-status synced';
+            }
+        }, 2000);
+    }
+    
+    // Load data dari server
+    async function loadData() {
+        showSyncStatus('', '🔄 Mengambil data dari server...');
+        try {
+            const response = await fetch(API_URL);
+            const result = await response.json();
+            
+            if (result.success && Array.isArray(result.data)) {
+                transactions = result.data;
+                renderAll();
+                showSyncStatus('success', `✅ ${transactions.length} transaksi dimuat`);
+            } else {
+                transactions = [];
+                renderAll();
+                showSyncStatus('success', '✅ Data siap');
+            }
+        } catch (error) {
+            console.error('Load error:', error);
+            showSyncStatus('error', '❌ Gagal koneksi ke server');
+            transactions = [];
+            renderAll();
+        }
+    }
+    
+    // Tambah refuel
+    async function addRefuel(tanggal, liter) {
+        showSyncStatus('', '💾 Menyimpan refuel...');
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    action: 'refuel', 
+                    tanggal: tanggal, 
+                    liter: liter 
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                await loadData();
+                return true;
+            } else {
+                showSyncStatus('error', '❌ ' + (result.message || 'Gagal menyimpan'));
+                return false;
+            }
+        } catch (error) {
+            console.error('Add refuel error:', error);
+            showSyncStatus('error', '❌ Gagal menyimpan');
+            return false;
+        }
+    }
+    
+    // Tambah odometer
+    async function addOdometer(jarak) {
+        showSyncStatus('', '💾 Menyimpan pemakaian...');
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    action: 'odometer', 
+                    jarak: jarak 
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                await loadData();
+                return true;
+            } else {
+                showSyncStatus('error', '❌ ' + (result.message || 'Gagal menyimpan'));
+                return false;
+            }
+        } catch (error) {
+            console.error('Add odometer error:', error);
+            showSyncStatus('error', '❌ Gagal menyimpan');
+            return false;
+        }
+    }
+    
+    // Reset semua data
+    async function resetData() {
+        if (!confirm('⚠️ Hapus SEMUA data? Tindakan ini permanen!')) return;
+        
+        showSyncStatus('', '🗑️ Menghapus data...');
+        try {
+            const response = await fetch(API_URL, { method: 'DELETE' });
+            const result = await response.json();
+            
+            if (result.success) {
+                await loadData();
+                showSyncStatus('success', '✅ Semua data telah dihapus');
+            } else {
+                showSyncStatus('error', '❌ Gagal reset data');
+            }
+        } catch (error) {
+            console.error('Reset error:', error);
+            showSyncStatus('error', '❌ Gagal reset data');
+        }
+    }
+    
+    // Hitung total liter dibeli
+    function totalLiterDibeli() {
+        return transactions.filter(t => t.jenis === 'refuel').reduce((sum, t) => sum + t.nilai, 0);
+    }
+    
+    // Hitung total km terpakai
+    function totalKmTerpakai() {
+        return transactions.filter(t => t.jenis === 'odometer').reduce((sum, t) => sum + t.nilai, 0);
+    }
+    
+    // Hitung sisa jarak (asumsi 1L = 10km)
+    function hitungSisaKm() {
+        const totalLiter = totalLiterDibeli();
+        const totalKm = totalKmTerpakai();
+        const sisaLiter = totalLiter - (totalKm / 10);
+        return Math.max(0, sisaLiter) * 10;
+    }
+    
+    // Render semua data ke UI
+    function renderAll() {
+        const totalLiter = totalLiterDibeli();
+        const totalKmSetara = totalLiter * 10;
+        const totalTerpakai = totalKmTerpakai();
+        const sisaKm = hitungSisaKm();
+        
+        document.getElementById('totalLiterDibeli').innerText = totalLiter.toFixed(2);
+        document.getElementById('totalLiterToKm').innerText = totalKmSetara.toFixed(2);
+        document.getElementById('totalKmTerpakai').innerText = totalTerpakai.toFixed(2);
+        document.getElementById('totalSisaKm').innerText = sisaKm.toFixed(2);
+        
+        const tbody = document.getElementById('tableBody');
+        if (!transactions.length) {
+            tbody.innerHTML = '<tr><td colspan="2">📭 Belum ada transaksi</td></tr>';
+            return;
+        }
+        
+        // Tampilkan dari yang terbaru
+        const sortedTransactions = [...transactions].reverse();
+        
+        let html = '';
+        for (let t of sortedTransactions) {
+            let detailText = '';
+            let kelasWarna = '';
+            
+            if (t.jenis === 'refuel') {
+                const kmEq = (t.nilai * 10).toFixed(2);
+                detailText = `+ ${t.nilai.toFixed(2)} L / ${kmEq} KM`;
+                kelasWarna = 'positive-change';
+            } else {
+                const literEq = (t.nilai / 10).toFixed(2);
+                detailText = `- ${t.nilai.toFixed(2)} KM / ${literEq} L`;
+                kelasWarna = 'negative-change';
+            }
+            
+            html += `
+                <tr>
+                    <td>${escapeHtml(t.tanggal)}</td>
+                    <td class="${kelasWarna}">${escapeHtml(detailText)}</td>
+                </tr>
+            `;
+        }
+        tbody.innerHTML = html;
+    }
+    
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]));
+    }
+    
+    // Event listeners
+    document.addEventListener('DOMContentLoaded', () => {
+        // Set tanggal default
+        const tanggalInput = document.getElementById('tanggalIsiInput');
+        if (tanggalInput) {
+            tanggalInput.value = new Date().toISOString().slice(0, 10);
+        }
+        
+        // Load data
+        loadData();
+        
+        // Tombol tambah pemakaian
+        document.getElementById('tambahPakaiBtn').addEventListener('click', async () => {
+            const jarak = parseFloat(document.getElementById('jarakPakaiInput').value);
+            if (isNaN(jarak) || jarak <= 0) {
+                alert('Masukkan jarak tempuh yang valid (> 0)');
+                return;
+            }
+            const success = await addOdometer(jarak);
+            if (success) {
+                document.getElementById('jarakPakaiInput').value = '';
+            }
+        });
+        
+        // Tombol tambah refuel
+        document.getElementById('tambahIsiBtn').addEventListener('click', async () => {
+            const liter = parseFloat(document.getElementById('literIsiInput').value);
+            if (isNaN(liter) || liter <= 0) {
+                alert('Masukkan liter refuel yang valid (> 0)');
+                return;
+            }
+            const tanggal = document.getElementById('tanggalIsiInput').value || new Date().toISOString().slice(0, 10);
+            const success = await addRefuel(tanggal, liter);
+            if (success) {
+                document.getElementById('literIsiInput').value = '';
+            }
+        });
+        
+        // Tombol reset
+        document.getElementById('resetBtn').addEventListener('click', resetData);
+    });
+</script>
+</body>
+</html>
